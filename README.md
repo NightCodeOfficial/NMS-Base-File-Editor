@@ -97,11 +97,18 @@ The save files use LZ4 compression and obfuscated JSON keys. This tool handles d
 
 7. **Export and edit base data:**
    - Click the **Copy** button in the editor to copy the base data.
-   - You can paste this data into djmonkeyuk's base editor ([Nexus Mods link](https://www.nexusmods.com/nomanssky/mods/2598)).
-     - In djmonkeyuk's base builder: click the top left icon → “Import base from NMS”.
-     - Paste the copied JSON.
-     - Make your edits in the base builder.
-     - To export, go to the top left menu → "Export to NMS" → Copy.
+   - Paste this data into djmonkeyuk's base editor ([Nexus Mods link](https://www.nexusmods.com/nomanssky/mods/2598)):
+     1. In djmonkeyuk's base builder, click the top left icon → “Import base from NMS”.
+     2. Paste the copied JSON.
+     
+        ![import to base editor](images/import%20from%20nms%201.png)
+     3. Make your edits in the base builder.
+     
+        ![example edits](images/example%20of%20imported%20ship.png)
+     4. To export, go to the top left menu → "Export to NMS" → Copy.
+     
+        ![export from base editor](images/copy%20to%20clipboard.png)
+
 
 8. **Apply changes in the save editor:**
    - Click the **pencil icon** in the editor.
