@@ -114,10 +114,16 @@ The save files use LZ4 compression and obfuscated JSON keys. This tool handles d
    - Click the **pencil icon** in the editor.
    - Use `Ctrl+A`, `Ctrl+V` to paste your edited base/ship data.
    - Click **Save**.
+   - Cllose the editing window
 
 9. **Save changes:**
-   - After making edits, you can inject the base back into the save file.
+   - After making edits, you can inject the base back into the save file using the button on the home screen.
    - The tool will create backups before making any changes.
+
+10. **View in NMS:**
+    - Launch NMS and view your ship.
+
+    ![in game ship](images/in%20game%20example.png)
 
 
 ### Using the API
