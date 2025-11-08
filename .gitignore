@@ -64,6 +64,6 @@ desktop.ini
 *.bak
 *~
 
-# Key mapping cache (if any)
-*.cache
+# Key mapping cache
+.nms_mapping_cache/
 
