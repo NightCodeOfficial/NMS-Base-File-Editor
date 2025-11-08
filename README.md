@@ -1,5 +1,9 @@
 # No Man's Sky Base Modifier
 
+
+![Save Tool Screenshot](images/save%20tool.png)
+
+
 A Python-based save file editor for No Man's Sky that allows you to extract, view, edit, and inject base data (including Corvettes and Planetary Bases) from your save files. The tool features a modern GUI built with PySide6 and provides a comprehensive API for programmatic save file manipulation.
 
 ## Overview

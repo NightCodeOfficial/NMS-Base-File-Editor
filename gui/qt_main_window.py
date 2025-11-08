@@ -359,18 +359,9 @@ class MainWindow(QMainWindow):
         self.bases_section = QVBoxLayout()
         self.bases_section.setSpacing(SPACING['md'])
         
-        # Section title with icon
+        # Section title
         title_layout = QHBoxLayout()
         title_layout.setSpacing(SPACING['sm'])
-        
-        icon_label = QLabel("📋")
-        icon_label.setStyleSheet(f"""
-            QLabel {{
-                color: {COLORS['text_secondary']};
-                font-size: 16px;
-            }}
-        """)
-        title_layout.addWidget(icon_label)
         
         title = QLabel("SELECT BASE")
         title.setStyleSheet(f"""
