@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project-specific: User data and backups
+backups/
+debug_json/
+sources/
+output/
+settings/file_settings.json
+
+# Save files
+*.hg
+*.hg.json
+
+# Logs
+*.log
+*.log.*
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*~
+
+# Key mapping cache (if any)
+*.cache
+
