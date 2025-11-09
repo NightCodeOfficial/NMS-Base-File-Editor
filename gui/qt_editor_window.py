@@ -99,6 +99,20 @@ class EditorWindow(QDialog):
         
         layout.addWidget(info_panel)
         
+        # Part count display
+        part_count_layout = QHBoxLayout()
+        self.part_count_label = QLabel()
+        self.part_count_label.setStyleSheet(f"""
+            QLabel {{
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['default'][1]}px;
+                font-weight: bold;
+            }}
+        """)
+        part_count_layout.addWidget(self.part_count_label)
+        part_count_layout.addStretch()
+        layout.addLayout(part_count_layout)
+        
         # JSON editor
         editor_panel = NMSPanel()
         editor_layout = QVBoxLayout(editor_panel)
@@ -120,6 +134,8 @@ class EditorWindow(QDialog):
             }}
         """)
         self.json_text.setReadOnly(True)
+        # Connect text changed signal to update part count
+        self.json_text.textChanged.connect(self._update_part_count)
         editor_layout.addWidget(self.json_text)
         
         layout.addWidget(editor_panel, 1)
@@ -132,6 +148,46 @@ class EditorWindow(QDialog):
     def _load_base_data(self):
         """Load base data into editor"""
         self.json_text.setPlainText(self.original_json)
+        self._update_part_count()
+    
+    def _update_part_count(self):
+        """Update the part count display based on current JSON content"""
+        try:
+            json_str = self.json_text.toPlainText().strip()
+            if not json_str:
+                self.part_count_label.setText("Number of parts: 0")
+                return
+            
+            # Try to parse the JSON
+            base_data = json.loads(json_str)
+            
+            # Count objects using the same logic as get_selected_base_component_count
+            count = 0
+            if "Objects" in base_data:
+                objects = base_data["Objects"]
+                if isinstance(objects, list):
+                    count = len(objects)
+            else:
+                # Use recursive search if Objects is nested
+                from utils import find_key_recursively
+                objects_keys = list(find_key_recursively(base_data, "Objects"))
+                if objects_keys:
+                    path, objects_value = objects_keys[0]
+                    if isinstance(objects_value, list):
+                        count = len(objects_value)
+            
+            self.part_count_label.setText(f"Number of parts: {count}")
+        except (json.JSONDecodeError, Exception):
+            # If JSON is invalid or incomplete, try to show last known count or 0
+            try:
+                # Fallback: try to get count from save_editor if available
+                if self.save_editor.selected_base is not None:
+                    count = self.save_editor.get_selected_base_component_count()
+                    self.part_count_label.setText(f"Number of parts: {count} (invalid JSON)")
+                else:
+                    self.part_count_label.setText("Number of parts: ? (invalid JSON)")
+            except:
+                self.part_count_label.setText("Number of parts: ? (invalid JSON)")
     
     def _copy_json(self):
         """Copy JSON to clipboard"""

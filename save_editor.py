@@ -234,6 +234,44 @@ class SaveEditor:
         # If we get here, the base was not found
         raise ValueError(f"Base with name '{base_name}' not found in loaded bases")
     
+    def get_selected_base_component_count(self):
+        '''
+        Get the component count (number of objects) from the currently selected base.
+        Uses recursive key search to find the "Objects" key in the base structure.
+        
+        Returns:
+            int: The number of components/objects in the selected base, or 0 if not found
+            
+        Raises:
+            ValueError: If no base is selected
+        '''
+        if self.selected_base is None:
+            raise ValueError("No base selected. Please select a base first using select_base().")
+        
+        # First try direct access (most common case)
+        if "Objects" in self.selected_base:
+            objects = self.selected_base["Objects"]
+            if isinstance(objects, list):
+                return len(objects)
+            else:
+                return 0
+        
+        else:
+            # This is the search that will likely run.
+            # Recursively search for the Objects key in the selected base
+            objects_keys = list(find_key_recursively(self.selected_base, "Objects"))
+            
+            if objects_keys:
+                # Get the first occurrence of Objects
+                path, objects_value = objects_keys[0]
+                if isinstance(objects_value, list):
+                    return len(objects_value)
+                else:
+                    return 0
+        
+        # If the key isn't found after both searches, return 0
+        return 0
+    
     def save_selected_base_to_json(self, output_path: str = None):
         '''
         Save the currently selected base to a JSON file.
