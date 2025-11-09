@@ -170,14 +170,3 @@ def recompress_save(data: dict, output_path: str, mapping_file: Optional[str] = 
                 pass
         raise IOError(f"Failed to write output file: {e}") from e
 
-
-
-# Test function - commented out to prevent execution on import
-# def test_recompressor():
-#     with open("output/save7_test.json", "r", encoding="utf-8") as f:
-#         data = json.load(f)
-#     output_path = "output/save7.hg"
-#     mapping_file = None
-#     recompress_save(data, output_path, mapping_file)
-#
-# test_recompressor()
