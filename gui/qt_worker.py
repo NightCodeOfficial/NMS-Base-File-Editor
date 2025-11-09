@@ -57,3 +57,22 @@ class InjectWorker(QThread):
         except Exception as e:
             self.finished.emit(False, str(e))
 
+
+class CountComponentsWorker(QThread):
+    """Worker thread for counting components in all bases"""
+    
+    finished = Signal(bool, int, str)  # success, count, message
+    progress = Signal(str)  # status message
+    
+    def __init__(self, save_editor):
+        super().__init__()
+        self.save_editor = save_editor
+    
+    def run(self):
+        """Run component counting in background"""
+        try:
+            self.progress.emit("Counting base parts...")
+            total_components = self.save_editor.get_number_of_components_for_all_bases_in_save_file()
+            self.finished.emit(True, total_components, f"Total components: {total_components}")
+        except Exception as e:
+            self.finished.emit(False, 0, str(e))

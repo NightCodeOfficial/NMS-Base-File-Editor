@@ -20,7 +20,7 @@ from .styles import COLORS, FONTS, SPACING, RADIUS
 from .qt_components import NMSButton, NMSPanel, PillToggleButton
 from .qt_dropdown import DropdownComboBox
 from .qt_editor_window import EditorWindow
-from .qt_worker import DecompressWorker, InjectWorker
+from .qt_worker import DecompressWorker, InjectWorker, CountComponentsWorker
 from .qt_spinner import LoadingSpinner
 from save_editor import SaveEditor
 
@@ -114,6 +114,7 @@ class MainWindow(QMainWindow):
         self.current_base_type_filter = None
         self.worker = None  # Background worker thread
         self.inject_worker = None  # Background worker for injection
+        self.count_worker = None  # Background worker for counting components
         
         # Load save files
         try:
@@ -290,6 +291,12 @@ class MainWindow(QMainWindow):
         self.inject_base_btn.setEnabled(False)
         button_layout.addWidget(self.inject_base_btn)
         
+        # Add count components button
+        self.count_components_btn = NMSButton("Count All Components", gradient_colors=COLORS['gradient_cyan_violet'])
+        self.count_components_btn.clicked.connect(self._count_components)
+        self.count_components_btn.setEnabled(False)
+        button_layout.addWidget(self.count_components_btn)
+        
         parent_layout.addLayout(button_layout)
     
     def _create_base_type_section(self, parent_layout):
@@ -459,8 +466,10 @@ class MainWindow(QMainWindow):
         
         save_file_name = selection.split(' - ')[0]
         
-        # Disable button during loading
+        # Disable buttons during loading
         self.load_file_btn.setEnabled(False)
+        if hasattr(self, 'count_components_btn'):
+            self.count_components_btn.setEnabled(False)
         self.loading_spinner.start()  # Start spinner
         self._update_status(f"Loading {save_file_name}...")
         
@@ -486,6 +495,10 @@ class MainWindow(QMainWindow):
                         widget = item.layout().itemAt(j).widget()
                         if widget:
                             widget.setEnabled(True)
+            
+            # Enable buttons that require loaded bases
+            if hasattr(self, 'count_components_btn'):
+                self.count_components_btn.setEnabled(True)
             
             self._update_status(message, 'success')
         else:
@@ -680,6 +693,46 @@ class MainWindow(QMainWindow):
             self._update_status(f"Error: {message}", 'error')
         
         self.inject_worker = None
+    
+    def _count_components(self):
+        """Count components in all bases"""
+        if self.save_editor.selected_save_file_dict is None:
+            QMessageBox.warning(self, "Warning", "No save file loaded. Please load a save file first.")
+            return
+        
+        if not self.save_editor.all_bases:
+            QMessageBox.warning(self, "Warning", "No bases loaded. Please load bases first.")
+            return
+        
+        # Disable button and start spinner
+        self.count_components_btn.setEnabled(False)
+        self.loading_spinner.start()
+        self._update_status("Counting base parts...")
+        
+        # Create and start worker thread
+        self.count_worker = CountComponentsWorker(self.save_editor)
+        self.count_worker.progress.connect(self._update_status)
+        self.count_worker.finished.connect(self._on_count_finished)
+        self.count_worker.start()
+    
+    def _on_count_finished(self, success, count, message):
+        """Handle component counting completion"""
+        self.loading_spinner.stop()
+        self.count_components_btn.setEnabled(True)
+        
+        if success:
+            QMessageBox.information(
+                self, 
+                "Component Count", 
+                f"Total number of components in all bases:\n\n{count:,}\n\n"
+                f"This includes all objects from all bases in the save file."
+            )
+            self._update_status(f"Counted {count:,} components", 'success')
+        else:
+            QMessageBox.critical(self, "Error", f"Failed to count components:\n{message}")
+            self._update_status(f"Error: {message}", 'error')
+        
+        self.count_worker = None
     
     def _update_status(self, message, status_type='info'):
         """Update status bar"""

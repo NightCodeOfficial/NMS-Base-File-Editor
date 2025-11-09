@@ -26,14 +26,12 @@ class SaveEditor:
         self.save_files = []
 
         # Get the save file metadata for each save file in the save_files list
+        # NEEDS TO BE FIXED
         self.save_file_metadata = {}
-
-
-        
-        
 
         # the currently selected save file
         self.selected_save_file = None
+
         # the dictionary version of the currently selected save file taken from decompressing the save file
         self.selected_save_file_dict = None
 
@@ -242,15 +240,25 @@ class SaveEditor:
         Returns:
             int: The number of components/objects in the selected base, or 0 if not found
             
+        '''
+        return self.get_numer_of_components_from_base(self.selected_base)
+
+
+    def get_numer_of_components_from_base(self, base: dict):
+        '''
+        Get the number of components from a base. Will return 0 if the base does not have an Objects key.
+        Args:
+            base: The base to get the number of components from
+        
+        Returns:
+            int: The number of components in the base
+        
         Raises:
             ValueError: If no base is selected
         '''
-        if self.selected_base is None:
-            raise ValueError("No base selected. Please select a base first using select_base().")
-        
         # First try direct access (most common case)
-        if "Objects" in self.selected_base:
-            objects = self.selected_base["Objects"]
+        if "Objects" in base:
+            objects = base["Objects"]
             if isinstance(objects, list):
                 return len(objects)
             else:
@@ -259,7 +267,7 @@ class SaveEditor:
         else:
             # This is the search that will likely run.
             # Recursively search for the Objects key in the selected base
-            objects_keys = list(find_key_recursively(self.selected_base, "Objects"))
+            objects_keys = list(find_key_recursively(base, "Objects"))
             
             if objects_keys:
                 # Get the first occurrence of Objects
@@ -271,6 +279,30 @@ class SaveEditor:
         
         # If the key isn't found after both searches, return 0
         return 0
+
+    
+    def get_number_of_components_for_all_bases_in_save_file(self):
+        '''
+        Get the number of components for all bases in the save file.
+        Helpful for check if you're approaching the max number of components in the save file.
+        '''
+
+        # Make sure a save dict is loaded first
+        if self.selected_save_file_dict is None:
+            raise ValueError("No save file decompressed. Please decompress a save file first.")
+
+        # Make sure bases are loaded 
+        if not self.all_bases:
+            raise ValueError("No bases loaded. Make sure to load bases before fetching part count.")
+        
+        # Get the number of components for all bases
+        # Slow proof of concept functionality right now. I will optomize this later.
+        total_components = 0
+        for base in self.all_bases:
+            total_components += self.get_numer_of_components_from_base(base)
+            
+        return total_components
+        
     
     def save_selected_base_to_json(self, output_path: str = None):
         '''
