@@ -72,7 +72,7 @@ class CountComponentsWorker(QThread):
         """Run component counting in background"""
         try:
             self.progress.emit("Counting base parts...")
-            total_components = self.save_editor.get_number_of_components_for_all_bases_in_save_file()
+            total_components = self.save_editor.get_num_components_save_file_owner()
             self.finished.emit(True, total_components, f"Total components: {total_components}")
         except Exception as e:
             self.finished.emit(False, 0, str(e))

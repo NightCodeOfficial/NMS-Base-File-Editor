@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(self.inject_base_btn)
         
         # Add count components button
-        self.count_components_btn = NMSButton("Count All Components", gradient_colors=COLORS['gradient_cyan_violet'])
+        self.count_components_btn = NMSButton("Get Number of Components Across All Bases of Save File Owner", gradient_colors=COLORS['gradient_cyan_violet'])
         self.count_components_btn.clicked.connect(self._count_components)
         self.count_components_btn.setEnabled(False)
         button_layout.addWidget(self.count_components_btn)
@@ -725,7 +725,7 @@ class MainWindow(QMainWindow):
                 self, 
                 "Component Count", 
                 f"Total number of components in all bases:\n\n{count:,}\n\n"
-                f"This includes all objects from all bases in the save file."
+                f"This includes all objects from all bases with UID of save file owner."
             )
             self._update_status(f"Counted {count:,} components", 'success')
         else:

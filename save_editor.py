@@ -56,6 +56,9 @@ class SaveEditor:
         # path to the backup of the original save file (.hg)
         self.original_save_file_backup_path = None
 
+        # the UID of the owner of the save file
+        self.save_file_owner_uid = None
+
     def load_save_files(self, save_file_directory: str = None):
         '''
         Load all save files from the save file directory.
@@ -280,6 +283,31 @@ class SaveEditor:
         # If the key isn't found after both searches, return 0
         return 0
 
+    def get_save_owner_uid(self):
+        '''
+        Get the UID of the owner of the save file.
+
+        returns:
+            str: The UID of the owner of the save file
+            None: If the UID is not found
+        '''
+        # It seems to be reliable to search "UsedDiscoveryOwnersV2" for the "UID" key across saves
+        if self.selected_save_file_dict is None:
+            raise ValueError("No save file decompressed. Please decompress a save file first.")
+        used_discovery_owners_v2 = find_key_recursively(self.selected_save_file_dict, "UsedDiscoveryOwnersV2")
+        if not used_discovery_owners_v2:
+            raise ValueError("Could not find UsedDiscoveryOwnersV2 in save file")
+        used_discovery_owners_v2_value = (list(used_discovery_owners_v2))[0]
+        used_discovery_sub_dict = used_discovery_owners_v2_value[1][0]
+
+        # Debug print the used_discovery_sub_dict
+        # print(used_discovery_sub_dict)
+        
+        # Now that we found the UsedDiscoveryOwnersV2 key, we need to check if the "UID" key is in the value
+        if "UID" in used_discovery_sub_dict:
+            return used_discovery_sub_dict["UID"]
+        else:
+            return None
     
     def get_number_of_components_for_all_bases_in_save_file(self):
         '''
@@ -300,7 +328,45 @@ class SaveEditor:
         total_components = 0
         for base in self.all_bases:
             total_components += self.get_numer_of_components_from_base(base)
-            
+
+        return total_components
+
+    def get_uid_from_base(self, base: dict):
+        '''
+        Get the UID from a base.
+        returns:
+            str: The UID of the base
+            None: If the UID is not found
+        '''
+        uid_generator = find_key_recursively(base, "UID")
+        if not uid_generator:
+            return None
+        try:
+            uid_list = list(uid_generator)
+            isolated_uid = uid_list[0][1]
+            return isolated_uid
+        except IndexError:
+            return None
+
+    def get_num_components_save_file_owner(self):
+        '''
+        Get the number of components for the owner of the save file.
+        '''
+        # Make sure a save dict is loaded first
+        if self.selected_save_file_dict is None:
+            raise ValueError("No save file decompressed. Please decompress a save file first.")
+        # first get the owner uid
+        owner_uid = self.get_save_owner_uid()
+        if owner_uid is None:
+            raise ValueError("Could not find owner UID in save file")
+        self.save_file_owner_uid = owner_uid
+        # Now go through a similar process to get_number_of_components_for_all_bases_in_save_file 
+        # but filter the bases by the owner uid
+        total_components = 0
+        for base in self.all_bases:
+            uid = self.get_uid_from_base(base)
+            if uid == owner_uid:
+                total_components += self.get_numer_of_components_from_base(base)
         return total_components
         
     
