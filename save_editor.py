@@ -190,6 +190,18 @@ class SaveEditor:
         print(f"Number of corvettes: {get_number_of_bases_by_type(base_values, 'PlayerShipBase')}")
         print(f"Number of planetary bases: {get_number_of_bases_by_type(base_values, 'ExternalPlanetBase')}")
         print(f"Total bases loaded: {len(base_values)}")
+        
+        # Debug: Print detailed info about each base
+        print("\nBase details:")
+        for i, base in enumerate(base_values):
+            if isinstance(base, dict):
+                base_type_obj = base.get("BaseType", {})
+                persistent_type = base_type_obj.get("PersistentBaseTypes", "Unknown") if isinstance(base_type_obj, dict) else "Unknown"
+                name = base.get("Name", "Unnamed")
+                owner_uid = base.get("Owner", {}).get("UID", "Unknown") if isinstance(base.get("Owner"), dict) else "Unknown"
+                print(f"  Base {i}: Name='{name}', Type='{persistent_type}', Owner UID='{owner_uid[:20]}...'")
+            else:
+                print(f"  Base {i}: Not a dict (type: {type(base)})")
 
     def get_bases_by_type(self, base_type: str):
         '''

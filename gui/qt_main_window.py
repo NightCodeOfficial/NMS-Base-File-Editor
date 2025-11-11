@@ -7,7 +7,7 @@ import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QListWidget, QMessageBox,
-    QFrame, QScrollArea
+    QFrame, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QPoint, QRect, QTimer
 from PySide6.QtGui import (
@@ -384,34 +384,68 @@ class MainWindow(QMainWindow):
         
         self.bases_section.addLayout(title_layout)
         
-        # List in panel
+        # Table in panel
         list_panel = NMSPanel()
         list_layout = QVBoxLayout(list_panel)
         list_layout.setContentsMargins(SPACING['md'], SPACING['md'], SPACING['md'], SPACING['md'])
         
-        self.bases_listbox = QListWidget()
-        self.bases_listbox.setStyleSheet(f"""
-            QListWidget {{
+        self.bases_table = QTableWidget()
+        self.bases_table.setColumnCount(3)
+        self.bases_table.setHorizontalHeaderLabels(["Base Name", "Type", "Owner"])
+        self.bases_table.setStyleSheet(f"""
+            QTableWidget {{
                 background-color: {COLORS['bg_tertiary']};
                 color: {COLORS['text_primary']};
                 border: 2px solid {COLORS['border']};
                 border-radius: {RADIUS['md']}px;
                 font-size: {FONTS['default'][1]}px;
+                gridline-color: {COLORS['border']};
+                selection-background-color: {COLORS['accent_cyan']};
+                alternate-background-color: #2a2a2a;
             }}
-            QListWidget::item {{
+            QTableWidget::item {{
                 padding: 8px;
-                border-radius: {RADIUS['sm']}px;
+                border: none;
+                background-color: #1a1a1a;
             }}
-            QListWidget::item:selected {{
-                background-color: {COLORS['selection']};
+            QTableWidget::item:alternate {{
+                background-color: #2a2a2a;
+            }}
+            QTableWidget::item:selected {{
+                background-color: {COLORS['accent_cyan']};
                 color: {COLORS['text_primary']};
             }}
-            QListWidget::item:hover {{
+            QTableWidget::item:selected:alternate {{
+                background-color: {COLORS['accent_cyan']};
+                color: {COLORS['text_primary']};
+            }}
+            QTableWidget::item:hover {{
                 background-color: {COLORS['bg_hover']};
             }}
+            QTableWidget::item:hover:alternate {{
+                background-color: {COLORS['bg_hover']};
+            }}
+            QHeaderView::section {{
+                background-color: {COLORS['bg_secondary']};
+                color: {COLORS['text_primary']};
+                padding: 10px;
+                border: none;
+                border-bottom: 2px solid {COLORS['border_cyan']};
+                font-weight: bold;
+                font-size: {FONTS['subheading'][1]}px;
+            }}
         """)
-        self.bases_listbox.itemClicked.connect(self._on_base_clicked)
-        list_layout.addWidget(self.bases_listbox)
+        self.bases_table.horizontalHeader().setStretchLastSection(True)
+        self.bases_table.setColumnWidth(0, 300)  # Base Name column
+        self.bases_table.setColumnWidth(1, 150)  # Type column
+        self.bases_table.setColumnWidth(2, 200)  # Owner column
+        self.bases_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.bases_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.bases_table.setAlternatingRowColors(True)
+        self.bases_table.verticalHeader().setVisible(False)  # Hide row numbers
+        self.bases_table.setShowGrid(False)  # Hide grid lines for cleaner look
+        self.bases_table.itemClicked.connect(self._on_base_clicked)
+        list_layout.addWidget(self.bases_table)
         
         self.bases_section.addWidget(list_panel, 1)
         parent_layout.addLayout(self.bases_section, 1)
@@ -500,6 +534,9 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'count_components_btn'):
                 self.count_components_btn.setEnabled(True)
             
+            # Automatically filter and display bases with default "both" filter
+            self._filter_and_display_bases("both")
+            
             self._update_status(message, 'success')
         else:
             QMessageBox.critical(self, "Error", f"Failed to load save file:\n{message}")
@@ -516,7 +553,7 @@ class MainWindow(QMainWindow):
         self._filter_and_display_bases(base_type)
     
     def _filter_and_display_bases(self, base_type):
-        """Filter bases and display in list - simplified"""
+        """Filter bases and display in table"""
         try:
             # Check if bases are loaded
             if not hasattr(self.save_editor, 'all_bases') or not self.save_editor.all_bases:
@@ -531,10 +568,20 @@ class MainWindow(QMainWindow):
                     if isinstance(base, dict):
                         base_type_obj = base.get("BaseType", {})
                         if isinstance(base_type_obj, dict):
-                            if base_type_obj.get("PersistentBaseTypes") == base_type:
+                            persistent_type = base_type_obj.get("PersistentBaseTypes", "")
+                            if persistent_type == base_type:
                                 self.filtered_bases.append(base)
             
-            # Update list
+            # Debug: Print counts
+            corvette_count = sum(1 for b in self.filtered_bases 
+                               if isinstance(b, dict) and 
+                               b.get("BaseType", {}).get("PersistentBaseTypes") == "PlayerShipBase")
+            planetary_count = sum(1 for b in self.filtered_bases 
+                                 if isinstance(b, dict) and 
+                                 b.get("BaseType", {}).get("PersistentBaseTypes") == "ExternalPlanetBase")
+            print(f"Filtered bases - Type: {base_type}, Corvettes: {corvette_count}, Planetary: {planetary_count}, Total: {len(self.filtered_bases)}")
+            
+            # Update table
             self._populate_bases_list()
             
             # Show section
@@ -549,12 +596,12 @@ class MainWindow(QMainWindow):
             traceback.print_exc()
     
     def _populate_bases_list(self):
-        """Populate bases list - simplified"""
-        if not hasattr(self, 'bases_listbox') or self.bases_listbox is None:
+        """Populate bases table with three columns"""
+        if not hasattr(self, 'bases_table') or self.bases_table is None:
             return
         
-        # Clear list
-        self.bases_listbox.clear()
+        # Clear table
+        self.bases_table.setRowCount(0)
         
         if not self.filtered_bases:
             return
@@ -566,61 +613,81 @@ class MainWindow(QMainWindow):
         elif hasattr(self, 'save_file_dropdown') and self.save_file_dropdown.currentText():
             save_file_name = self.save_file_dropdown.currentText().split(' - ')[0].replace('.hg', '')
         
-        # Add items
+        # Add rows to table
         for i, base in enumerate(self.filtered_bases):
             if not isinstance(base, dict):
                 continue
             
             # Get name
             name = base.get("Name") or ""
-            if not name:
+            if not name or name == "Default":
                 base_type_obj = base.get("BaseType", {})
                 persistent_type = base_type_obj.get("PersistentBaseTypes", "") if isinstance(base_type_obj, dict) else ""
                 if persistent_type == "PlayerShipBase":
-                    name = f"Unnamed Corvette {i + 1} from {save_file_name}"
+                    name = f"Unnamed Corvette {i + 1}"
+                elif persistent_type == "ExternalPlanetBase":
+                    name = f"Unnamed Base {i + 1}"
                 else:
-                    name = f"Unnamed Base {i + 1} from {save_file_name}"
+                    name = f"Unnamed Base {i + 1}"
             
-            # Get base type
+            # Get base type - format it nicely
             base_type_obj = base.get("BaseType", {})
-            base_type = base_type_obj.get("PersistentBaseTypes", "Unknown") if isinstance(base_type_obj, dict) else "Unknown"
+            persistent_type = base_type_obj.get("PersistentBaseTypes", "Unknown") if isinstance(base_type_obj, dict) else "Unknown"
+            
+            # Format base type for display
+            if persistent_type == "PlayerShipBase":
+                display_type = "Corvette"
+            elif persistent_type == "ExternalPlanetBase":
+                display_type = "Planetary Base"
+            else:
+                display_type = persistent_type
             
             # Get owner
             owner_obj = base.get("Owner", {})
             owner_usn = owner_obj.get("USN", "Unknown") if isinstance(owner_obj, dict) else "Unknown"
-            if not owner_usn:
+            if not owner_usn or owner_usn == "":
                 owner_usn = "Unknown"
             
-            # Add item
-            item_text = f"{name} | {base_type} | Owner: {owner_usn}"
+            # Add row to table
+            row = self.bases_table.rowCount()
+            self.bases_table.insertRow(row)
             
-            # Replace "Default" with descriptive name based on base type
-            if item_text.startswith("Default |"):
-                if base_type == "PlayerShipBase":
-                    item_text = item_text.replace("Default |", f"Corvette Base {i + 1} |", 1)
-                elif base_type == "ExternalPlanetBase":
-                    item_text = item_text.replace("Default |", f"Planetary Base {i + 1} |", 1)
-                else:
-                    item_text = item_text.replace("Default |", f"Base {i + 1} |", 1)
+            # Set items in each column
+            name_item = QTableWidgetItem(name)
+            name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+            self.bases_table.setItem(row, 0, name_item)
             
-            self.bases_listbox.addItem(item_text)
+            type_item = QTableWidgetItem(display_type)
+            type_item.setFlags(type_item.flags() & ~Qt.ItemIsEditable)
+            self.bases_table.setItem(row, 1, type_item)
+            
+            owner_item = QTableWidgetItem(owner_usn)
+            owner_item.setFlags(owner_item.flags() & ~Qt.ItemIsEditable)
+            self.bases_table.setItem(row, 2, owner_item)
     
     def _on_base_clicked(self, item):
-        """Handle base selection - simplified"""
+        """Handle base selection from table"""
         try:
-            index = self.bases_listbox.row(item)
-            if index < 0 or index >= len(self.filtered_bases):
+            row = item.row()
+            if row < 0 or row >= len(self.filtered_bases):
                 return
             
-            self.selected_base_index = index
-            selected_base = self.filtered_bases[index]
+            self.selected_base_index = row
+            selected_base = self.filtered_bases[row]
             
             # Store selected base
             self.save_editor.selected_base = selected_base
-            self.save_editor.selected_base_index = index
+            
+            # Find the actual index in all_bases for the save_editor
+            try:
+                actual_index = self.save_editor.all_bases.index(selected_base)
+                self.save_editor.selected_base_index = actual_index
+            except ValueError:
+                # If base not found in all_bases, use filtered index
+                self.save_editor.selected_base_index = None
             
             # Get name for display
-            base_name = selected_base.get("Name") or f"Base {index + 1}"
+            base_name = selected_base.get("Name") or f"Base {row + 1}"
             
             # Enable buttons
             if hasattr(self, 'edit_base_btn'):
@@ -628,7 +695,7 @@ class MainWindow(QMainWindow):
             if hasattr(self, 'inject_base_btn'):
                 self.inject_base_btn.setEnabled(False)
             
-            self._update_status(f"Selected: {base_name}")
+            self._update_status(f"Selected: {base_name}", 'info')
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to select base:\n{e}")
     
