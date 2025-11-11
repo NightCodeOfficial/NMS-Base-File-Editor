@@ -7,7 +7,7 @@ import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QListWidget, QMessageBox,
-    QFrame, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView
+    QFrame, QScrollArea, QTableWidget, QTableWidgetItem, QHeaderView, QCheckBox
 )
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QPoint, QRect, QTimer
 from PySide6.QtGui import (
@@ -112,6 +112,7 @@ class MainWindow(QMainWindow):
         self.selected_base_index = None
         self.filtered_bases = []
         self.current_base_type_filter = None
+        self.save_file_owner_uid = None  # UID of the save file owner
         self.worker = None  # Background worker thread
         self.inject_worker = None  # Background worker for injection
         self.count_worker = None  # Background worker for counting components
@@ -384,6 +385,38 @@ class MainWindow(QMainWindow):
         
         self.bases_section.addLayout(title_layout)
         
+        # Checkbox for showing all players' bases
+        checkbox_layout = QHBoxLayout()
+        checkbox_layout.setSpacing(SPACING['sm'])
+        
+        self.show_all_players_checkbox = QCheckBox("Show bases by all players")
+        self.show_all_players_checkbox.setChecked(False)  # Unchecked by default
+        self.show_all_players_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['default'][1]}px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {COLORS['border']};
+                border-radius: 4px;
+                background-color: {COLORS['bg_secondary']};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {COLORS['accent_cyan']};
+                border-color: {COLORS['accent_cyan']};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {COLORS['accent_cyan']};
+            }}
+        """)
+        self.show_all_players_checkbox.stateChanged.connect(self._on_show_all_players_changed)
+        checkbox_layout.addWidget(self.show_all_players_checkbox)
+        checkbox_layout.addStretch()
+        
+        self.bases_section.addLayout(checkbox_layout)
+        
         # Table in panel
         list_panel = NMSPanel()
         list_layout = QVBoxLayout(list_panel)
@@ -454,6 +487,12 @@ class MainWindow(QMainWindow):
             item = self.bases_section.itemAt(i)
             if item.widget():
                 item.widget().hide()
+            elif item.layout():
+                # Hide all widgets in the layout
+                for j in range(item.layout().count()):
+                    layout_item = item.layout().itemAt(j)
+                    if layout_item and layout_item.widget():
+                        layout_item.widget().hide()
     
     def _create_status_bar(self):
         """Create status bar with loading spinner"""
@@ -519,6 +558,17 @@ class MainWindow(QMainWindow):
         self.loading_spinner.stop()  # Stop spinner
         
         if success:
+            # Get the save file owner UID
+            try:
+                self.save_file_owner_uid = self.save_editor.get_save_owner_uid()
+            except Exception as e:
+                print(f"Warning: Could not get save file owner UID: {e}")
+                self.save_file_owner_uid = None
+            
+            # Reset checkbox to unchecked state
+            if hasattr(self, 'show_all_players_checkbox'):
+                self.show_all_players_checkbox.setChecked(False)
+            
             # Show base type section
             for i in range(self.base_type_section.count()):
                 item = self.base_type_section.itemAt(i)
@@ -559,18 +609,37 @@ class MainWindow(QMainWindow):
             if not hasattr(self.save_editor, 'all_bases') or not self.save_editor.all_bases:
                 return
             
-            # Filter bases
+            # Get checkbox state
+            show_all_players = False
+            if hasattr(self, 'show_all_players_checkbox'):
+                show_all_players = self.show_all_players_checkbox.isChecked()
+            
+            # Filter bases by type first
             if base_type == "both":
-                self.filtered_bases = list(self.save_editor.all_bases)
+                type_filtered_bases = list(self.save_editor.all_bases)
             else:
-                self.filtered_bases = []
+                type_filtered_bases = []
                 for base in self.save_editor.all_bases:
                     if isinstance(base, dict):
                         base_type_obj = base.get("BaseType", {})
                         if isinstance(base_type_obj, dict):
                             persistent_type = base_type_obj.get("PersistentBaseTypes", "")
                             if persistent_type == base_type:
+                                type_filtered_bases.append(base)
+            
+            # Filter by owner UID if checkbox is unchecked
+            if not show_all_players and self.save_file_owner_uid:
+                self.filtered_bases = []
+                for base in type_filtered_bases:
+                    if isinstance(base, dict):
+                        owner_obj = base.get("Owner", {})
+                        if isinstance(owner_obj, dict):
+                            owner_uid = owner_obj.get("UID", "")
+                            if owner_uid == self.save_file_owner_uid:
                                 self.filtered_bases.append(base)
+            else:
+                # Show all bases (no owner filter)
+                self.filtered_bases = type_filtered_bases
             
             # Debug: Print counts
             corvette_count = sum(1 for b in self.filtered_bases 
@@ -579,7 +648,7 @@ class MainWindow(QMainWindow):
             planetary_count = sum(1 for b in self.filtered_bases 
                                  if isinstance(b, dict) and 
                                  b.get("BaseType", {}).get("PersistentBaseTypes") == "ExternalPlanetBase")
-            print(f"Filtered bases - Type: {base_type}, Corvettes: {corvette_count}, Planetary: {planetary_count}, Total: {len(self.filtered_bases)}")
+            print(f"Filtered bases - Type: {base_type}, Show All: {show_all_players}, Corvettes: {corvette_count}, Planetary: {planetary_count}, Total: {len(self.filtered_bases)}")
             
             # Update table
             self._populate_bases_list()
@@ -589,11 +658,25 @@ class MainWindow(QMainWindow):
                 item = self.bases_section.itemAt(i)
                 if item.widget():
                     item.widget().show()
+                elif item.layout():
+                    # Show all widgets in the layout
+                    for j in range(item.layout().count()):
+                        layout_item = item.layout().itemAt(j)
+                        if layout_item and layout_item.widget():
+                            layout_item.widget().show()
                     
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to filter bases:\n{e}")
             import traceback
             traceback.print_exc()
+    
+    def _on_show_all_players_changed(self, state):
+        """Handle checkbox state change for showing all players' bases"""
+        # Re-filter bases with current base type filter
+        if hasattr(self, 'base_type_var'):
+            self._filter_and_display_bases(self.base_type_var)
+        else:
+            self._filter_and_display_bases("both")
     
     def _populate_bases_list(self):
         """Populate bases table with three columns"""
